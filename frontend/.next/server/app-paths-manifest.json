@@ -1,0 +1,10 @@
+{
+  "/parent/dashboard/page": "app/parent/dashboard/page.js",
+  "/parent/rewards/page": "app/parent/rewards/page.js",
+  "/parent/children/page": "app/parent/children/page.js",
+  "/parent/children/[id]/page": "app/parent/children/[id]/page.js",
+  "/parent/tasks/[id]/page": "app/parent/tasks/[id]/page.js",
+  "/page": "app/page.js",
+  "/login/page": "app/login/page.js",
+  "/child/login/page": "app/child/login/page.js"
+}
