@@ -35,6 +35,11 @@ const setupPinSchema = z.object({
   pin: z.string().regex(VALIDATION.PIN.PATTERN, 'PIN must be exactly 4 digits'),
 });
 
+const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1),
+  newPassword: z.string().min(VALIDATION.PASSWORD.MIN_LENGTH),
+});
+
 const refreshSchema = z.object({
   refreshToken: z.string(),
 });
@@ -153,6 +158,20 @@ authRouter.post('/logout', (_req, res) => {
     success: true,
     data: { message: 'Logged out successfully' },
   });
+});
+
+// PUT /auth/password - Change password
+authRouter.put('/password', authenticate, validateBody(changePasswordSchema), async (req, res, next) => {
+  try {
+    await authService.changePassword(req.user!.userId, req.body.currentPassword, req.body.newPassword);
+
+    res.json({
+      success: true,
+      data: { message: 'Password changed successfully' },
+    });
+  } catch (error) {
+    next(error);
+  }
 });
 
 // GET /auth/me - Get current user

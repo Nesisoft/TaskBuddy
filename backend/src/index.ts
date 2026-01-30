@@ -3,6 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import morgan from 'morgan';
 import cookieParser from 'cookie-parser';
+import path from 'path';
 import { createServer } from 'http';
 
 import { config, validateConfig } from './config';
@@ -32,6 +33,9 @@ app.use(cookieParser());
 if (config.env !== 'test') {
   app.use(morgan(config.env === 'production' ? 'combined' : 'dev'));
 }
+
+// Serve uploaded files
+app.use('/uploads', express.static(path.resolve(__dirname, '../uploads')));
 
 // Health check
 app.get('/health', (_req, res) => {

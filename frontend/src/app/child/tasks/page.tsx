@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   CheckCircle2,
@@ -10,6 +10,9 @@ import {
   Camera,
   ChevronRight,
   Trophy,
+  Upload,
+  X,
+  Image as ImageIcon,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { ChildLayout } from '@/components/layouts/ChildLayout';
@@ -38,6 +41,7 @@ export default function ChildTasksPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [completingId, setCompletingId] = useState<string | null>(null);
   const [showConfetti, setShowConfetti] = useState(false);
+  const [photoAssignment, setPhotoAssignment] = useState<TaskAssignment | null>(null);
 
   const loadTasks = useCallback(async () => {
     try {
@@ -56,8 +60,7 @@ export default function ChildTasksPage() {
 
   const handleComplete = async (assignment: TaskAssignment) => {
     if (assignment.task.requiresPhotoEvidence) {
-      // TODO: Open camera/photo picker
-      showError('Photo upload coming soon!');
+      setPhotoAssignment(assignment);
       return;
     }
 
@@ -75,9 +78,30 @@ export default function ChildTasksPage() {
     }
   };
 
-  const pendingTasks = assignments.filter(a => a.status === 'ASSIGNED' || a.status === 'IN_PROGRESS');
-  const waitingApproval = assignments.filter(a => a.status === 'PENDING_APPROVAL');
-  const completedTasks = assignments.filter(a => a.status === 'APPROVED');
+  const handlePhotoComplete = async (photo: File) => {
+    if (!photoAssignment) return;
+
+    setCompletingId(photoAssignment.id);
+    try {
+      // Upload photo first
+      await tasksApi.uploadEvidence(photoAssignment.id, photo);
+      // Then complete the task
+      await tasksApi.completeAssignment(photoAssignment.id);
+      showSuccess('Task completed with photo! Waiting for approval.');
+      setShowConfetti(true);
+      setTimeout(() => setShowConfetti(false), 3000);
+      setPhotoAssignment(null);
+      loadTasks();
+    } catch {
+      showError('Failed to complete task');
+    } finally {
+      setCompletingId(null);
+    }
+  };
+
+  const pendingTasks = assignments.filter(a => a.status === 'pending' || a.status === 'in_progress');
+  const waitingApproval = assignments.filter(a => a.status === 'completed');
+  const completedTasks = assignments.filter(a => a.status === 'approved');
 
   if (isLoading) {
     return (
@@ -238,7 +262,165 @@ export default function ChildTasksPage() {
           </div>
         )}
       </div>
+
+      {/* Photo Upload Modal */}
+      <AnimatePresence>
+        {photoAssignment && (
+          <PhotoUploadModal
+            taskTitle={photoAssignment.task.title}
+            isUploading={completingId === photoAssignment.id}
+            onSubmit={handlePhotoComplete}
+            onClose={() => setPhotoAssignment(null)}
+          />
+        )}
+      </AnimatePresence>
     </ChildLayout>
+  );
+}
+
+// Photo Upload Modal Component
+function PhotoUploadModal({
+  taskTitle,
+  isUploading,
+  onSubmit,
+  onClose,
+}: {
+  taskTitle: string;
+  isUploading: boolean;
+  onSubmit: (photo: File) => void;
+  onClose: () => void;
+}) {
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setSelectedFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => setPreview(reader.result as string);
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSubmit = () => {
+    if (selectedFile) {
+      onSubmit(selectedFile);
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={{ opacity: 0 }}
+      className="fixed inset-0 bg-black/50 z-50 flex items-end sm:items-center justify-center p-4"
+      onClick={onClose}
+    >
+      <motion.div
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        exit={{ y: 100, opacity: 0 }}
+        className="bg-white rounded-2xl p-6 max-w-sm w-full shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="font-display text-lg font-bold text-slate-900">
+            Upload Photo
+          </h3>
+          <button
+            onClick={onClose}
+            className="p-1 rounded-full hover:bg-slate-100"
+            disabled={isUploading}
+          >
+            <X className="w-5 h-5 text-slate-500" />
+          </button>
+        </div>
+
+        <p className="text-sm text-slate-600 mb-4">
+          Take or upload a photo to complete <strong>{taskTitle}</strong>
+        </p>
+
+        {/* Hidden file input */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          capture="environment"
+          onChange={handleFileChange}
+          className="hidden"
+        />
+
+        {/* Preview or Upload Area */}
+        {preview ? (
+          <div className="relative mb-4">
+            <img
+              src={preview}
+              alt="Photo preview"
+              className="w-full h-48 object-cover rounded-xl"
+            />
+            <button
+              onClick={() => {
+                setSelectedFile(null);
+                setPreview(null);
+              }}
+              className="absolute top-2 right-2 p-1.5 bg-black/50 rounded-full text-white hover:bg-black/70"
+              disabled={isUploading}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="w-full h-48 rounded-xl border-2 border-dashed border-slate-300 hover:border-xp-400 hover:bg-xp-50 transition-colors flex flex-col items-center justify-center gap-3 mb-4"
+          >
+            <div className="w-14 h-14 rounded-full bg-slate-100 flex items-center justify-center">
+              <Camera className="w-7 h-7 text-slate-500" />
+            </div>
+            <div className="text-center">
+              <p className="font-medium text-slate-700">Tap to take a photo</p>
+              <p className="text-xs text-slate-500">or choose from gallery</p>
+            </div>
+          </button>
+        )}
+
+        {/* Actions */}
+        <div className="flex gap-3">
+          {!preview ? (
+            <Button
+              fullWidth
+              variant="secondary"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              <ImageIcon className="w-4 h-4" />
+              Choose Photo
+            </Button>
+          ) : (
+            <>
+              <Button
+                variant="secondary"
+                onClick={() => fileInputRef.current?.click()}
+                disabled={isUploading}
+              >
+                Change
+              </Button>
+              <Button
+                fullWidth
+                variant="success"
+                onClick={handleSubmit}
+                loading={isUploading}
+              >
+                <Upload className="w-4 h-4" />
+                Submit & Complete
+              </Button>
+            </>
+          )}
+        </div>
+      </motion.div>
+    </motion.div>
   );
 }
 

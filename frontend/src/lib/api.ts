@@ -142,6 +142,12 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify({ childId, pin }),
     }),
+
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<ApiResponse<{ message: string }>>('/auth/password', {
+      method: 'PUT',
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
 };
 
 // Family API
@@ -233,6 +239,30 @@ export const tasksApi = {
       body: JSON.stringify({ photoUrl, note }),
     }),
 
+  uploadEvidence: async (assignmentId: string, photo: File): Promise<ApiResponse<{ evidence: { id: string; fileUrl: string } }>> => {
+    const url = `${API_BASE}/tasks/assignments/${assignmentId}/upload`;
+    const token = getAccessToken();
+    const formData = new FormData();
+    formData.append('photo', photo);
+
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    // Do NOT set Content-Type — browser sets it with boundary for FormData
+    const response = await fetch(url, {
+      method: 'POST',
+      headers,
+      body: formData,
+      credentials: 'include',
+    });
+    const data = await response.json();
+    if (!response.ok) {
+      throw new ApiError(data.message || 'Upload failed', response.status, data);
+    }
+    return data;
+  },
+
   approveAssignment: (assignmentId: string, approved: boolean, feedback?: string, bonusPoints?: number) =>
     request<ApiResponse<{ assignment: unknown }>>(`/tasks/assignments/${assignmentId}/approve`, {
       method: 'PUT',
@@ -297,4 +327,13 @@ export const dashboardApi = {
 
   getLeaderboard: () =>
     request<ApiResponse<{ leaderboard: unknown[] }>>('/dashboard/leaderboard'),
+};
+
+// Achievements API
+export const achievementsApi = {
+  getAll: () =>
+    request<ApiResponse<{ achievements: unknown[]; stats: unknown }>>('/achievements'),
+
+  getUnlocked: () =>
+    request<ApiResponse<{ achievements: unknown[] }>>('/achievements/unlocked'),
 };

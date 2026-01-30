@@ -57,8 +57,8 @@ export default function ChildRewardsPage() {
       ]);
       setRewards((rewardsRes.data as { rewards: Reward[] }).rewards);
       setRedemptions((redemptionsRes.data as { redemptions: Redemption[] }).redemptions);
-      const profile = (dashboardRes.data as { profile: { totalPoints: number } }).profile;
-      setUserPoints(profile?.totalPoints || 0);
+      const profile = (dashboardRes.data as { profile: { pointsBalance: number } }).profile;
+      setUserPoints(profile?.pointsBalance || 0);
     } catch {
       showError('Failed to load rewards');
     } finally {
@@ -86,7 +86,7 @@ export default function ChildRewardsPage() {
     }
   };
 
-  const pendingRedemptions = redemptions.filter(r => r.status === 'PENDING');
+  const pendingRedemptions = redemptions.filter(r => r.status === 'pending');
 
   if (isLoading) {
     return (
@@ -192,7 +192,7 @@ export default function ChildRewardsPage() {
         </section>
 
         {/* Recent Redemptions */}
-        {redemptions.filter(r => r.status === 'FULFILLED').length > 0 && (
+        {redemptions.filter(r => r.status === 'fulfilled').length > 0 && (
           <section>
             <h2 className="font-display font-bold text-lg text-slate-900 mb-4 flex items-center gap-2">
               <Check className="w-5 h-5 text-success-500" />
@@ -200,7 +200,7 @@ export default function ChildRewardsPage() {
             </h2>
             <div className="space-y-3">
               {redemptions
-                .filter(r => r.status === 'FULFILLED')
+                .filter(r => r.status === 'fulfilled')
                 .slice(0, 5)
                 .map((redemption) => (
                   <div

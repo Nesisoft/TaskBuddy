@@ -328,6 +328,34 @@ export class AuthService {
     });
   }
 
+  // Change password for parent user
+  async changePassword(userId: string, currentPassword: string, newPassword: string) {
+    const user = await prisma.user.findUnique({
+      where: { id: userId },
+    });
+
+    if (!user || !user.passwordHash) {
+      throw new NotFoundError('User not found');
+    }
+
+    if (user.role !== 'parent') {
+      throw new UnauthorizedError('Only parents can change passwords');
+    }
+
+    // Verify current password
+    const isValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isValid) {
+      throw new UnauthorizedError('Current password is incorrect');
+    }
+
+    // Hash and save new password
+    const passwordHash = await bcrypt.hash(newPassword, SALT_ROUNDS);
+    await prisma.user.update({
+      where: { id: userId },
+      data: { passwordHash },
+    });
+  }
+
   // Refresh access token
   async refreshToken(refreshToken: string) {
     try {

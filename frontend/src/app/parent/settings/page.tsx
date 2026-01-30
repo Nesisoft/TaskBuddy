@@ -12,7 +12,7 @@ import {
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { ParentLayout } from '@/components/layouts/ParentLayout';
-import { familyApi } from '@/lib/api';
+import { familyApi, authApi } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -260,6 +260,8 @@ export default function ParentSettingsPage() {
               <p className="text-sm text-slate-500">{user?.email}</p>
             </div>
 
+            <ChangePasswordForm />
+
             <Button variant="destructive" onClick={logout}>
               Sign Out
             </Button>
@@ -274,6 +276,99 @@ export default function ParentSettingsPage() {
         </div>
       </div>
     </ParentLayout>
+  );
+}
+
+// Change Password Form Component
+function ChangePasswordForm() {
+  const { error: showError, success: showSuccess } = useToast();
+  const [isOpen, setIsOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (newPassword.length < 8) {
+      showError('New password must be at least 8 characters');
+      return;
+    }
+
+    if (newPassword !== confirmPassword) {
+      showError('New passwords do not match');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await authApi.changePassword(currentPassword, newPassword);
+      showSuccess('Password changed successfully');
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      setIsOpen(false);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to change password';
+      showError(message);
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  if (!isOpen) {
+    return (
+      <Button variant="secondary" onClick={() => setIsOpen(true)}>
+        Change Password
+      </Button>
+    );
+  }
+
+  return (
+    <form onSubmit={handleSubmit} className="space-y-3 p-4 rounded-xl border border-slate-200 bg-slate-50">
+      <h3 className="font-medium text-slate-900">Change Password</h3>
+      <Input
+        label="Current Password"
+        type="password"
+        value={currentPassword}
+        onChange={(e) => setCurrentPassword(e.target.value)}
+        required
+      />
+      <Input
+        label="New Password"
+        type="password"
+        value={newPassword}
+        onChange={(e) => setNewPassword(e.target.value)}
+        required
+        placeholder="At least 8 characters"
+      />
+      <Input
+        label="Confirm New Password"
+        type="password"
+        value={confirmPassword}
+        onChange={(e) => setConfirmPassword(e.target.value)}
+        required
+      />
+      <div className="flex gap-2">
+        <Button type="submit" size="sm" loading={isSubmitting}>
+          Update Password
+        </Button>
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          onClick={() => {
+            setIsOpen(false);
+            setCurrentPassword('');
+            setNewPassword('');
+            setConfirmPassword('');
+          }}
+        >
+          Cancel
+        </Button>
+      </div>
+    </form>
   );
 }
 

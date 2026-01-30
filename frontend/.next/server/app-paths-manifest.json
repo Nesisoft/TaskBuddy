@@ -1,9 +1,4 @@
 {
   "/child/tasks/page": "app/child/tasks/page.js",
-  "/parent/tasks/page": "app/parent/tasks/page.js",
-  "/parent/rewards/page": "app/parent/rewards/page.js",
-  "/parent/tasks/[id]/page": "app/parent/tasks/[id]/page.js",
-  "/parent/dashboard/page": "app/parent/dashboard/page.js",
-  "/parent/children/page": "app/parent/children/page.js",
-  "/parent/settings/page": "app/parent/settings/page.js"
+  "/child/achievements/page": "app/child/achievements/page.js"
 }

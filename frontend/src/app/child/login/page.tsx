@@ -3,17 +3,41 @@
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { CheckCircle2, ArrowLeft, Users, Delete } from 'lucide-react';
+import { CheckCircle2, ArrowLeft, Users, Delete, Edit2 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/components/ui/Toast';
 import { ApiError } from '@/lib/api';
 
+const STORAGE_KEY_FAMILY = 'taskbuddy_child_familyId';
+const STORAGE_KEY_NAME = 'taskbuddy_child_name';
+
+function getSavedCredentials(): { familyId: string; childName: string } | null {
+  if (typeof window === 'undefined') return null;
+  const familyId = localStorage.getItem(STORAGE_KEY_FAMILY);
+  const childName = localStorage.getItem(STORAGE_KEY_NAME);
+  if (familyId && childName) {
+    return { familyId, childName };
+  }
+  return null;
+}
+
+function saveCredentials(familyId: string, childName: string) {
+  localStorage.setItem(STORAGE_KEY_FAMILY, familyId);
+  localStorage.setItem(STORAGE_KEY_NAME, childName);
+}
+
+function clearCredentials() {
+  localStorage.removeItem(STORAGE_KEY_FAMILY);
+  localStorage.removeItem(STORAGE_KEY_NAME);
+}
+
 export default function ChildLoginPage() {
-  const [step, setStep] = useState<'family' | 'name' | 'pin'>('family');
-  const [familyId, setFamilyId] = useState('');
-  const [childName, setChildName] = useState('');
+  const saved = getSavedCredentials();
+  const [step, setStep] = useState<'family' | 'name' | 'pin'>(saved ? 'pin' : 'family');
+  const [familyId, setFamilyId] = useState(saved?.familyId || '');
+  const [childName, setChildName] = useState(saved?.childName || '');
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const { childLogin } = useAuth();
@@ -52,6 +76,8 @@ export default function ChildLoginPage() {
     setIsLoading(true);
     try {
       await childLogin(familyId, childName, pinToUse);
+      // Save on successful login
+      saveCredentials(familyId, childName);
     } catch (err) {
       setPin('');
       if (err instanceof ApiError) {
@@ -76,6 +102,12 @@ export default function ChildLoginPage() {
     if (childName.trim()) {
       setStep('pin');
     }
+  };
+
+  const handleChangeIdentity = () => {
+    clearCredentials();
+    setPin('');
+    setStep('family');
   };
 
   return (
@@ -184,6 +216,27 @@ export default function ChildLoginPage() {
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
             >
+              {/* Welcome Back Banner */}
+              <div className="bg-xp-50 rounded-xl p-3 mb-6">
+                <div className="flex items-center justify-between">
+                  <div className="min-w-0">
+                    <p className="text-sm text-xp-700 font-medium truncate">
+                      Welcome back, <strong>{childName}</strong>
+                    </p>
+                    <p className="text-xs text-xp-500 truncate">
+                      Family: {familyId.slice(0, 8)}...
+                    </p>
+                  </div>
+                  <button
+                    onClick={handleChangeIdentity}
+                    className="flex-shrink-0 ml-2 p-1.5 rounded-lg hover:bg-xp-100 transition-colors"
+                    title="Change family or name"
+                  >
+                    <Edit2 className="w-4 h-4 text-xp-600" />
+                  </button>
+                </div>
+              </div>
+
               <h1 className="font-display text-2xl font-bold text-slate-900 text-center mb-2">
                 Enter Your PIN
               </h1>
@@ -265,12 +318,9 @@ export default function ChildLoginPage() {
                   type="button"
                   variant="ghost"
                   size="sm"
-                  onClick={() => {
-                    setPin('');
-                    setStep('name');
-                  }}
+                  onClick={handleChangeIdentity}
                 >
-                  Not you? Go back
+                  Not you? Change account
                 </Button>
               </div>
 

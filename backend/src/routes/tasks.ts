@@ -5,6 +5,7 @@ import { authenticate, requireParent, requireAuth, familyIsolation } from '../mi
 import { validateBody, validateQuery } from '../middleware/validate';
 import { NotFoundError, ForbiddenError, ConflictError } from '../middleware/errorHandler';
 import { GAMIFICATION } from '@taskbuddy/shared';
+import { uploadPhoto } from '../middleware/upload';
 
 export const taskRouter = Router();
 
@@ -383,6 +384,62 @@ taskRouter.put('/assignments/:id/complete', validateBody(completeTaskSchema), as
     res.json({
       success: true,
       data: { assignment: updated },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// POST /tasks/assignments/:id/upload - Upload photo evidence for a task
+taskRouter.post('/assignments/:id/upload', uploadPhoto.single('photo'), async (req, res, next) => {
+  try {
+    const assignment = await prisma.taskAssignment.findFirst({
+      where: {
+        id: req.params.id,
+        task: {
+          familyId: req.familyId,
+          deletedAt: null,
+        },
+      },
+    });
+
+    if (!assignment) {
+      throw new NotFoundError('Assignment not found');
+    }
+
+    if (req.user!.role === 'child' && assignment.childId !== req.user!.userId) {
+      throw new ForbiddenError('Cannot upload evidence for another child\'s task');
+    }
+
+    if (!req.file) {
+      throw new ConflictError('No photo file provided');
+    }
+
+    // Build URL path relative to server
+    const relativePath = req.file.path.split('/uploads/').pop();
+    const fileUrl = `/uploads/${relativePath}`;
+
+    // Create evidence record
+    const evidence = await prisma.taskEvidence.create({
+      data: {
+        assignmentId: assignment.id,
+        evidenceType: 'photo',
+        fileUrl,
+        fileKey: req.file.filename,
+        fileSizeBytes: req.file.size,
+        mimeType: req.file.mimetype,
+      },
+    });
+
+    res.json({
+      success: true,
+      data: {
+        evidence: {
+          id: evidence.id,
+          fileUrl,
+          mimeType: evidence.mimeType,
+        },
+      },
     });
   } catch (error) {
     next(error);

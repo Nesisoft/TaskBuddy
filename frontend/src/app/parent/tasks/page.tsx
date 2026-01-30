@@ -35,10 +35,17 @@ interface Task {
 interface TaskAssignment {
   id: string;
   status: string;
-  assignedTo: {
+  child: {
     id: string;
     firstName: string;
     lastName: string;
+    avatarUrl?: string;
+  };
+  task?: {
+    id: string;
+    title: string;
+    pointsValue: number;
+    difficulty: string;
   };
   completedAt?: string;
   approvedAt?: string;
@@ -93,7 +100,7 @@ export default function ParentTasksPage() {
     if (!matchesSearch) return false;
 
     if (activeTab === 'completed') {
-      return task.status === 'COMPLETED';
+      return task.status === 'archived';
     }
 
     return true;
@@ -238,7 +245,7 @@ export default function ParentTasksPage() {
 // Task Card Component
 function TaskCard({ task }: { task: Task }) {
   const assignedCount = task.assignments?.length || 0;
-  const completedCount = task.assignments?.filter(a => a.status === 'APPROVED').length || 0;
+  const completedCount = task.assignments?.filter(a => a.status === 'approved').length || 0;
 
   return (
     <Link href={`/parent/tasks/${task.id}`}>
@@ -305,7 +312,7 @@ function PendingApprovalCard({
           <div className="flex items-center gap-2 mb-2">
             <Clock className="w-5 h-5 text-warning-500" />
             <span className="font-bold text-slate-900">
-              {assignment.assignedTo.firstName} completed a task
+              {assignment.child?.firstName || 'Child'} completed {assignment.task?.title || 'a task'}
             </span>
           </div>
           <p className="text-sm text-slate-600 mb-4">

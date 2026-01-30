@@ -93,7 +93,7 @@ export default function ParentRewardsPage() {
     }
   };
 
-  const pendingRedemptions = redemptions.filter(r => r.status === 'PENDING');
+  const pendingRedemptions = redemptions.filter(r => r.status === 'pending');
 
   if (isLoading) {
     return (
@@ -286,7 +286,7 @@ function RedemptionCard({
   redemption: Redemption;
   onFulfill: () => void;
 }) {
-  const isPending = redemption.status === 'PENDING';
+  const isPending = redemption.status === 'pending';
 
   return (
     <div
@@ -301,12 +301,12 @@ function RedemptionCard({
             'w-12 h-12 rounded-full flex items-center justify-center',
             isPending
               ? 'bg-warning-100'
-              : redemption.status === 'FULFILLED'
+              : redemption.status === 'fulfilled'
               ? 'bg-success-100'
               : 'bg-slate-100'
           )}
         >
-          {redemption.status === 'FULFILLED' ? (
+          {redemption.status === 'fulfilled' ? (
             <Check className="w-6 h-6 text-success-600" />
           ) : isPending ? (
             <Clock className="w-6 h-6 text-warning-600" />
@@ -333,7 +333,7 @@ function RedemptionCard({
           <span
             className={cn(
               'badge',
-              redemption.status === 'FULFILLED'
+              redemption.status === 'fulfilled'
                 ? 'bg-success-100 text-success-700'
                 : 'bg-slate-100 text-slate-600'
             )}
