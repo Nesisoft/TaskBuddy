@@ -57,6 +57,12 @@ From root:
 npm run dev
 ```
 
+### 7. Seed database when needed
+
+```bash
+npm run db:seed
+```
+
 #### Running services:
 
 - **Backend:** http://localhost:3001
