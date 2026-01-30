@@ -39,6 +39,10 @@ const updateSettingsSchema = z.object({
   timezone: z.string().optional(),
 });
 
+const updateFamilySchema = z.object({
+  familyName: z.string().min(2).max(100),
+});
+
 // GET /families/me - Get current family
 familyRouter.get('/me', async (req, res, next) => {
   try {
@@ -52,6 +56,28 @@ familyRouter.get('/me', async (req, res, next) => {
     if (!family) {
       throw new NotFoundError('Family not found');
     }
+
+    res.json({
+      success: true,
+      data: { family },
+    });
+  } catch (error) {
+    next(error);
+  }
+});
+
+// PUT /families/me - Update family info
+familyRouter.put('/me', requireParent, validateBody(updateFamilySchema), async (req, res, next) => {
+  try {
+    const family = await prisma.family.update({
+      where: { id: req.familyId },
+      data: {
+        familyName: req.body.familyName,
+      },
+      include: {
+        settings: true,
+      },
+    });
 
     res.json({
       success: true,

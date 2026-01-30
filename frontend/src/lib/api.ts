@@ -152,6 +152,12 @@ export const familyApi = {
   getMembers: () =>
     request<ApiResponse<{ members: unknown[] }>>('/families/me/members'),
 
+  updateFamily: (data: { familyName: string }) =>
+    request<ApiResponse<unknown>>('/families/me', {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
   getSettings: () =>
     request<ApiResponse<unknown>>('/families/me/settings'),
 

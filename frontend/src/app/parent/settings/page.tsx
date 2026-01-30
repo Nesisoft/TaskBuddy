@@ -6,7 +6,6 @@ import {
   Users,
   Bell,
   Shield,
-  Palette,
   Copy,
   Check,
 } from 'lucide-react';
@@ -17,48 +16,69 @@ import { familyApi } from '@/lib/api';
 import { useToast } from '@/components/ui/Toast';
 import { useAuth } from '@/contexts/AuthContext';
 
-interface FamilySettings {
+interface Family {
   id: string;
   familyName: string;
   settings?: {
-    allowChildRewardRequests: boolean;
-    requirePhotoProof: boolean;
-    autoApproveEasyTasks: boolean;
-    weeklyPointsReset: boolean;
-    timezone: string;
+    autoApproveRecurringTasks: boolean;
+    enableDailyChallenges: boolean;
+    enableLeaderboard: boolean;
+    streakGracePeriodHours: number;
   };
+}
+
+interface FamilySettingsData {
+  autoApproveRecurringTasks: boolean;
+  enableDailyChallenges: boolean;
+  enableLeaderboard: boolean;
+  streakGracePeriodHours: number;
 }
 
 export default function ParentSettingsPage() {
   const { user, logout } = useAuth();
   const { error: showError, success: showSuccess } = useToast();
-  const [family, setFamily] = useState<FamilySettings | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const [settings, setSettings] = useState({
-    familyName: '',
-    allowChildRewardRequests: true,
-    requirePhotoProof: false,
-    autoApproveEasyTasks: false,
+  const [familyId, setFamilyId] = useState('');
+  const [familyName, setFamilyName] = useState('');
+  const [familySettings, setFamilySettings] = useState<FamilySettingsData>({
+    autoApproveRecurringTasks: false,
+    enableDailyChallenges: true,
+    enableLeaderboard: false,
+    streakGracePeriodHours: 4,
   });
 
   useEffect(() => {
-    loadSettings();
+    loadData();
   }, []);
 
-  const loadSettings = async () => {
+  const loadData = async () => {
     try {
-      const response = await familyApi.getFamily();
-      const data = response.data as FamilySettings;
-      setFamily(data);
-      setSettings({
-        familyName: data?.familyName || '',
-        allowChildRewardRequests: data?.settings?.allowChildRewardRequests ?? true,
-        requirePhotoProof: data?.settings?.requirePhotoProof ?? false,
-        autoApproveEasyTasks: data?.settings?.autoApproveEasyTasks ?? false,
-      });
+      // Load family info and settings in parallel
+      const [familyRes, settingsRes] = await Promise.all([
+        familyApi.getFamily(),
+        familyApi.getSettings(),
+      ]);
+
+      // Extract family data from nested response: { family: { id, familyName, ... } }
+      const familyData = (familyRes.data as { family: Family }).family;
+      if (familyData) {
+        setFamilyId(familyData.id);
+        setFamilyName(familyData.familyName || '');
+      }
+
+      // Extract settings data from nested response: { settings: { ... } }
+      const settingsData = (settingsRes.data as { settings: FamilySettingsData }).settings;
+      if (settingsData) {
+        setFamilySettings({
+          autoApproveRecurringTasks: settingsData.autoApproveRecurringTasks ?? false,
+          enableDailyChallenges: settingsData.enableDailyChallenges ?? true,
+          enableLeaderboard: settingsData.enableLeaderboard ?? false,
+          streakGracePeriodHours: settingsData.streakGracePeriodHours ?? 4,
+        });
+      }
     } catch {
       showError('Failed to load settings');
     } finally {
@@ -69,18 +89,23 @@ export default function ParentSettingsPage() {
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      await familyApi.updateSettings(settings);
+      // Save family name and settings in parallel
+      await Promise.all([
+        familyApi.updateFamily({ familyName }),
+        familyApi.updateSettings(familySettings),
+      ]);
       showSuccess('Settings saved');
-    } catch {
-      showError('Failed to save settings');
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Failed to save settings';
+      showError(message);
     } finally {
       setIsSaving(false);
     }
   };
 
   const copyFamilyCode = () => {
-    if (family?.id) {
-      navigator.clipboard.writeText(family.id);
+    if (familyId) {
+      navigator.clipboard.writeText(familyId);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
       showSuccess('Family code copied!');
@@ -120,8 +145,8 @@ export default function ParentSettingsPage() {
           <div className="space-y-4">
             <Input
               label="Family Name"
-              value={settings.familyName}
-              onChange={(e) => setSettings({ ...settings, familyName: e.target.value })}
+              value={familyName}
+              onChange={(e) => setFamilyName(e.target.value)}
             />
 
             <div>
@@ -130,7 +155,7 @@ export default function ParentSettingsPage() {
               </label>
               <div className="flex gap-2">
                 <Input
-                  value={family?.id || ''}
+                  value={familyId}
                   readOnly
                   className="font-mono text-sm"
                 />
@@ -158,39 +183,60 @@ export default function ParentSettingsPage() {
 
           <div className="space-y-4">
             <ToggleSetting
-              label="Require Photo Proof"
-              description="Children must submit a photo when completing tasks"
-              checked={settings.requirePhotoProof}
-              onChange={(checked) => setSettings({ ...settings, requirePhotoProof: checked })}
+              label="Auto-approve Recurring Tasks"
+              description="Automatically approve recurring tasks when completed"
+              checked={familySettings.autoApproveRecurringTasks}
+              onChange={(checked) => setFamilySettings({ ...familySettings, autoApproveRecurringTasks: checked })}
             />
 
             <ToggleSetting
-              label="Auto-approve Easy Tasks"
-              description="Automatically approve tasks marked as 'Easy'"
-              checked={settings.autoApproveEasyTasks}
-              onChange={(checked) => setSettings({ ...settings, autoApproveEasyTasks: checked })}
+              label="Enable Daily Challenges"
+              description="Show daily challenge tasks for children"
+              checked={familySettings.enableDailyChallenges}
+              onChange={(checked) => setFamilySettings({ ...familySettings, enableDailyChallenges: checked })}
+            />
+
+            <ToggleSetting
+              label="Enable Leaderboard"
+              description="Show a leaderboard ranking among siblings"
+              checked={familySettings.enableLeaderboard}
+              onChange={(checked) => setFamilySettings({ ...familySettings, enableLeaderboard: checked })}
             />
           </div>
         </section>
 
-        {/* Reward Settings */}
+        {/* Gamification Settings */}
         <section className="bg-white rounded-xl p-6 border border-slate-200">
           <div className="flex items-center gap-3 mb-6">
             <div className="w-10 h-10 rounded-lg bg-gold-100 flex items-center justify-center">
               <Bell className="w-5 h-5 text-gold-600" />
             </div>
             <h2 className="font-display font-bold text-lg text-slate-900">
-              Reward Settings
+              Gamification
             </h2>
           </div>
 
           <div className="space-y-4">
-            <ToggleSetting
-              label="Allow Reward Requests"
-              description="Children can request new rewards to be added"
-              checked={settings.allowChildRewardRequests}
-              onChange={(checked) => setSettings({ ...settings, allowChildRewardRequests: checked })}
-            />
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                Streak Grace Period (hours)
+              </label>
+              <Input
+                type="number"
+                min={0}
+                max={12}
+                value={familySettings.streakGracePeriodHours}
+                onChange={(e) =>
+                  setFamilySettings({
+                    ...familySettings,
+                    streakGracePeriodHours: parseInt(e.target.value) || 0,
+                  })
+                }
+              />
+              <p className="text-sm text-slate-500 mt-1">
+                Extra hours before a streak is broken (0-12)
+              </p>
+            </div>
           </div>
         </section>
 

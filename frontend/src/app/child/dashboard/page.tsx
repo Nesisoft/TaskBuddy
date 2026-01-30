@@ -20,7 +20,10 @@ import Link from 'next/link';
 import { ChildLayout } from '@/components/layouts/ChildLayout';
 
 interface TaskAssignment {
-  id: string;
+  assignment: {
+    id: string;
+    status: string;
+  };
   task: {
     id: string;
     title: string;
@@ -28,40 +31,52 @@ interface TaskAssignment {
     difficulty: string;
     pointsValue: number;
   };
-  status: string;
-  dueDate?: string;
 }
 
 interface Achievement {
-  id: string;
-  name: string;
-  description: string;
-  iconUrl?: string;
+  achievement: {
+    id: string;
+    name: string;
+    description: string;
+    iconUrl?: string;
+  };
   unlockedAt: string;
 }
 
 interface ChildDashboardData {
   profile: {
     level: number;
-    totalXp: number;
-    totalPoints: number;
-    currentStreak: number;
-    longestStreak: number;
+    experiencePoints: number;
+    pointsBalance: number;
+    totalPointsEarned: number;
+    currentStreakDays: number;
+    longestStreakDays: number;
+    totalTasksCompleted: number;
   };
   todaysTasks: TaskAssignment[];
+  streak: {
+    current: number;
+    atRisk: boolean;
+    completedToday: number;
+    requiredDaily: number;
+  };
   recentAchievements: Achievement[];
   dailyChallenge?: {
     id: string;
-    task: {
-      title: string;
-      pointsValue: number;
-    };
-    bonusMultiplier: number;
+    title: string;
+    description?: string;
+    bonusPoints: number;
+    progress: number;
+    target: number;
+    completed: boolean;
   };
   nextReward?: {
-    id: string;
-    name: string;
-    pointsCost: number;
+    reward: {
+      id: string;
+      name: string;
+      pointsCost: number;
+    };
+    pointsNeeded: number;
   };
 }
 
@@ -96,24 +111,32 @@ export default function ChildDashboardPage() {
     );
   }
 
-  // Use mock data if API fails
+  // Use default data if API fails
   const dashboardData = data || {
     profile: {
-      level: 5,
-      totalXp: 850,
-      totalPoints: 2450,
-      currentStreak: 7,
-      longestStreak: 14,
+      level: 1,
+      experiencePoints: 0,
+      pointsBalance: 0,
+      totalPointsEarned: 0,
+      currentStreakDays: 0,
+      longestStreakDays: 0,
+      totalTasksCompleted: 0,
     },
     todaysTasks: [],
+    streak: { current: 0, atRisk: false, completedToday: 0, requiredDaily: 1 },
     recentAchievements: [],
     dailyChallenge: undefined,
     nextReward: undefined,
   };
 
-  const { level, currentXp, nextLevelXp } = levelFromXp(dashboardData.profile.totalXp);
+  const totalXp = dashboardData.profile.experiencePoints ?? 0;
+  const { level, currentXp, nextLevelXp } = levelFromXp(totalXp);
   const xpProgress = (currentXp / nextLevelXp) * 100;
-  const completedTasks = dashboardData.todaysTasks.filter(t => t.status === 'COMPLETED' || t.status === 'APPROVED').length;
+  const streakDays = dashboardData.profile.currentStreakDays ?? dashboardData.streak?.current ?? 0;
+  const completedTasks = dashboardData.todaysTasks.filter(t => {
+    const status = t.assignment?.status || '';
+    return status === 'completed' || status === 'approved';
+  }).length;
   const totalTasks = dashboardData.todaysTasks.length;
 
   return (
@@ -128,10 +151,10 @@ export default function ChildDashboardPage() {
           <h1 className="font-display text-2xl font-bold text-slate-900 mb-2">
             Hey {user?.firstName}! 👋
           </h1>
-          {dashboardData.profile.currentStreak > 0 && (
+          {streakDays > 0 && (
             <div className="inline-flex items-center gap-2 px-4 py-2 bg-gradient-to-r from-orange-400 to-red-500 text-white rounded-full font-bold">
               <span className="text-xl">🔥</span>
-              <span>{dashboardData.profile.currentStreak} day streak!</span>
+              <span>{streakDays} day streak!</span>
             </div>
           )}
         </motion.div>
@@ -155,7 +178,7 @@ export default function ChildDashboardPage() {
             </div>
             <div className="text-right">
               <p className="text-xp-100">Total XP</p>
-              <p className="font-bold text-xl">{dashboardData.profile.totalXp.toLocaleString()}</p>
+              <p className="font-bold text-xl">{totalXp.toLocaleString()}</p>
             </div>
           </div>
 
@@ -251,7 +274,7 @@ export default function ChildDashboardPage() {
         </motion.div>
 
         {/* Daily Challenge */}
-        {dashboardData.dailyChallenge && (
+        {dashboardData.dailyChallenge && !dashboardData.dailyChallenge.completed && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -262,15 +285,15 @@ export default function ChildDashboardPage() {
               <Star className="w-5 h-5" />
               <span className="font-bold">Daily Challenge</span>
               <span className="ml-auto text-sm bg-white/20 px-2 py-1 rounded-full">
-                {dashboardData.dailyChallenge.bonusMultiplier}x points!
+                +{dashboardData.dailyChallenge.bonusPoints} bonus points!
               </span>
             </div>
             <p className="font-bold text-lg mb-3">
-              {dashboardData.dailyChallenge.task.title}
+              {dashboardData.dailyChallenge.title}
             </p>
             <div className="flex items-center justify-between">
               <span className="text-gold-100">
-                Worth {dashboardData.dailyChallenge.task.pointsValue * dashboardData.dailyChallenge.bonusMultiplier} points
+                {dashboardData.dailyChallenge.progress}/{dashboardData.dailyChallenge.target} completed
               </span>
               <ChevronRight className="w-5 h-5" />
             </div>
@@ -301,8 +324,8 @@ export default function ChildDashboardPage() {
             </div>
           ) : (
             <div className="space-y-3">
-              {dashboardData.todaysTasks.slice(0, 3).map((assignment) => (
-                <TaskPreviewCard key={assignment.id} assignment={assignment} />
+              {dashboardData.todaysTasks.slice(0, 3).map((item, index) => (
+                <TaskPreviewCard key={item.assignment?.id || index} item={item} />
               ))}
               {dashboardData.todaysTasks.length > 3 && (
                 <Link href="/child/tasks">
@@ -330,11 +353,11 @@ export default function ChildDashboardPage() {
                   </div>
                   <div className="flex-1">
                     <p className="text-sm text-slate-500">Next reward</p>
-                    <p className="font-bold text-slate-900">{dashboardData.nextReward.name}</p>
+                    <p className="font-bold text-slate-900">{dashboardData.nextReward.reward.name}</p>
                     <div className="flex items-center gap-1 text-sm">
                       <Star className="w-4 h-4 text-gold-500" />
                       <span className="text-gold-600 font-medium">
-                        {formatPoints(dashboardData.nextReward.pointsCost)} points
+                        {formatPoints(dashboardData.nextReward.reward.pointsCost)} points needed
                       </span>
                     </div>
                   </div>
@@ -362,16 +385,16 @@ export default function ChildDashboardPage() {
               </Link>
             </div>
             <div className="flex gap-4 overflow-x-auto pb-2 scrollbar-hide">
-              {dashboardData.recentAchievements.map((achievement) => (
+              {dashboardData.recentAchievements.map((item, index) => (
                 <div
-                  key={achievement.id}
+                  key={item.achievement?.id || index}
                   className="flex-shrink-0 w-20 text-center"
                 >
                   <div className="w-16 h-16 mx-auto rounded-full bg-gradient-to-br from-gold-400 to-gold-600 flex items-center justify-center text-2xl mb-2 shadow-lg shadow-gold-500/30">
                     <Trophy className="w-8 h-8 text-white" />
                   </div>
                   <p className="text-xs font-medium text-slate-900 truncate">
-                    {achievement.name}
+                    {item.achievement?.name}
                   </p>
                 </div>
               ))}
@@ -384,12 +407,13 @@ export default function ChildDashboardPage() {
 }
 
 // Task Preview Card
-function TaskPreviewCard({ assignment }: { assignment: TaskAssignment }) {
-  const isCompleted = assignment.status === 'COMPLETED' || assignment.status === 'APPROVED';
-  const isPending = assignment.status === 'PENDING_APPROVAL';
+function TaskPreviewCard({ item }: { item: TaskAssignment }) {
+  const status = item.assignment?.status || '';
+  const isCompleted = status === 'completed' || status === 'approved';
+  const isPending = status === 'completed'; // completed but not yet approved
 
   return (
-    <Link href={`/child/tasks/${assignment.id}`}>
+    <Link href="/child/tasks">
       <div
         className={cn(
           'flex items-center gap-4 p-4 rounded-xl transition-colors',
@@ -423,16 +447,16 @@ function TaskPreviewCard({ assignment }: { assignment: TaskAssignment }) {
               isCompleted ? 'text-success-800' : 'text-slate-900'
             )}
           >
-            {assignment.task.title}
+            {item.task?.title || 'Task'}
           </p>
           <div className="flex items-center gap-2 mt-1">
             <span
               className={cn(
                 'text-xs px-2 py-0.5 rounded-full font-medium',
-                getDifficultyColor(assignment.task.difficulty)
+                getDifficultyColor((item.task?.difficulty || '').toUpperCase())
               )}
             >
-              {assignment.task.difficulty}
+              {item.task?.difficulty || 'medium'}
             </span>
             {isPending && (
               <span className="text-xs text-warning-600">Waiting for approval</span>
@@ -441,7 +465,7 @@ function TaskPreviewCard({ assignment }: { assignment: TaskAssignment }) {
         </div>
         <div className="flex items-center gap-1 text-gold-600 font-bold">
           <Star className="w-4 h-4" />
-          <span>{assignment.task.pointsValue}</span>
+          <span>{item.task?.pointsValue || 0}</span>
         </div>
       </div>
     </Link>
