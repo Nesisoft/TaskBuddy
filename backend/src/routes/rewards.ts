@@ -4,6 +4,7 @@ import { prisma } from '../services/database';
 import { authenticate, requireParent, familyIsolation } from '../middleware/auth';
 import { validateBody } from '../middleware/validate';
 import { NotFoundError, ForbiddenError, ConflictError, ValidationError } from '../middleware/errorHandler';
+import { checkAndUnlockAchievements } from '../services/achievements';
 
 export const rewardRouter = Router();
 
@@ -284,12 +285,16 @@ rewardRouter.post('/:id/redeem', async (req, res, next) => {
       return { redemption, newBalance };
     });
 
+    // Check and unlock any achievements earned (e.g., "First Reward")
+    const unlockedAchievements = await checkAndUnlockAchievements(req.user!.userId);
+
     res.status(201).json({
       success: true,
       data: {
         redemptionId: result.redemption.id,
         pointsSpent: reward.pointsCost,
         newBalance: result.newBalance,
+        unlockedAchievements,
       },
     });
   } catch (error) {

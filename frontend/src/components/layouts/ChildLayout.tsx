@@ -46,14 +46,12 @@ export function ChildLayout({ children }: ChildLayoutProps) {
     );
   }
 
-  // Mock data for header - in real app, this comes from user context
-  const childData = {
-    points: 2450,
-    xp: 1850,
-    streak: 7,
-  };
+  const profile = user?.childProfile;
+  const points = profile?.pointsBalance ?? 0;
+  const xp = profile?.experiencePoints ?? 0;
+  const streak = profile?.currentStreakDays ?? 0;
 
-  const { level, currentXp, nextLevelXp } = levelFromXp(childData.xp);
+  const { level, currentXp, nextLevelXp } = levelFromXp(xp);
   const xpProgress = (currentXp / nextLevelXp) * 100;
 
   return (
@@ -92,17 +90,17 @@ export function ChildLayout({ children }: ChildLayoutProps) {
             {/* Stats */}
             <div className="flex items-center gap-4">
               {/* Streak */}
-              {childData.streak > 0 && (
+              {streak > 0 && (
                 <div className="flex items-center gap-1 px-2.5 py-1 bg-gradient-to-r from-orange-400 to-red-500 text-white rounded-full text-sm font-bold">
                   <span>🔥</span>
-                  <span>{childData.streak}</span>
+                  <span>{streak}</span>
                 </div>
               )}
 
               {/* Points */}
               <div className="flex items-center gap-1 px-3 py-1.5 bg-gold-100 text-gold-700 rounded-full font-bold">
                 <span>⭐</span>
-                <span>{formatPoints(childData.points)}</span>
+                <span>{formatPoints(points)}</span>
               </div>
             </div>
           </div>

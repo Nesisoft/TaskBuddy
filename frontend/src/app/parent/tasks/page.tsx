@@ -12,6 +12,8 @@ import {
   XCircle,
   Star,
   ChevronRight,
+  Camera,
+  FileText,
 } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
@@ -32,6 +34,15 @@ interface Task {
   createdAt: string;
 }
 
+interface TaskEvidence {
+  id: string;
+  evidenceType: string;
+  fileUrl?: string;
+  note?: string;
+  mimeType?: string;
+  uploadedAt: string;
+}
+
 interface TaskAssignment {
   id: string;
   status: string;
@@ -47,6 +58,7 @@ interface TaskAssignment {
     pointsValue: number;
     difficulty: string;
   };
+  evidence?: TaskEvidence[];
   completedAt?: string;
   approvedAt?: string;
 }
@@ -100,16 +112,19 @@ export default function ParentTasksPage() {
     if (!matchesSearch) return false;
 
     if (activeTab === 'completed') {
-      return task.status === 'archived';
+      // Show tasks that have at least one approved assignment
+      return task.assignments?.some(a => a.status === 'approved') || false;
     }
 
     return true;
   });
 
+  const completedCount = tasks.filter(t => t.assignments?.some(a => a.status === 'approved')).length;
+
   const tabs: { key: TabType; label: string; count?: number }[] = [
     { key: 'all', label: 'All Tasks', count: tasks.length },
     { key: 'pending', label: 'Pending Approval', count: pendingApprovals.length },
-    { key: 'completed', label: 'Completed' },
+    { key: 'completed', label: 'Completed', count: completedCount },
   ];
 
   if (isLoading) {
@@ -251,7 +266,7 @@ function TaskCard({ task }: { task: Task }) {
     <Link href={`/parent/tasks/${task.id}`}>
       <motion.div
         whileHover={{ scale: 1.01 }}
-        className="bg-white rounded-xl p-5 border border-slate-200 hover:border-primary-300 hover:shadow-sm transition-all"
+        className="bg-white rounded-xl p-5 border border-slate-200 shadow-sm hover:border-primary-300 hover:shadow-md transition-all"
       >
         <div className="flex items-start justify-between gap-4">
           <div className="flex-1 min-w-0">
@@ -266,7 +281,7 @@ function TaskCard({ task }: { task: Task }) {
                 {task.description}
               </p>
             )}
-            <div className="flex items-center gap-4 text-sm">
+            <div className="flex items-center gap-3 text-sm flex-wrap">
               <span className={cn('badge', getStatusColor(task.status))}>
                 {task.status.replace('_', ' ')}
               </span>
@@ -275,7 +290,11 @@ function TaskCard({ task }: { task: Task }) {
                   {completedCount}/{assignedCount} completed
                 </span>
               )}
-              <span className="text-slate-400">{formatDate(task.createdAt)}</span>
+              {task.assignments && task.assignments.length > 0 && (
+                <span className="text-slate-400">
+                  {task.assignments.map(a => a.child?.firstName).filter(Boolean).join(', ')}
+                </span>
+              )}
             </div>
           </div>
           <div className="flex flex-col items-end gap-2">
@@ -301,36 +320,102 @@ function PendingApprovalCard({
   onApprove: () => void;
   onReject: () => void;
 }) {
+  const [expandedPhoto, setExpandedPhoto] = useState<string | null>(null);
+  const photos = assignment.evidence?.filter(e => e.evidenceType === 'photo' && e.fileUrl) || [];
+  const notes = assignment.evidence?.filter(e => e.evidenceType === 'note' && e.note) || [];
+
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-xl p-5 border border-warning-200 shadow-sm"
-    >
-      <div className="flex items-start justify-between gap-4">
-        <div className="flex-1">
-          <div className="flex items-center gap-2 mb-2">
-            <Clock className="w-5 h-5 text-warning-500" />
-            <span className="font-bold text-slate-900">
-              {assignment.child?.firstName || 'Child'} completed {assignment.task?.title || 'a task'}
-            </span>
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="bg-white rounded-xl p-5 border border-warning-200 shadow-sm"
+      >
+        <div className="flex items-center gap-2 mb-3">
+          <Clock className="w-5 h-5 text-warning-500" />
+          <span className="font-bold text-slate-900">
+            {assignment.child?.firstName || 'Child'} completed {assignment.task?.title || 'a task'}
+          </span>
+        </div>
+
+        <p className="text-sm text-slate-600 mb-3">
+          Completed on {assignment.completedAt ? formatDate(assignment.completedAt) : 'N/A'}
+        </p>
+
+        {/* Photo Evidence */}
+        {photos.length > 0 && (
+          <div className="mb-3">
+            <div className="flex items-center gap-1.5 text-sm text-slate-500 mb-2">
+              <Camera className="w-4 h-4" />
+              <span>Photo evidence ({photos.length})</span>
+            </div>
+            <div className="flex gap-2 overflow-x-auto pb-1">
+              {photos.map((evidence) => (
+                <button
+                  key={evidence.id}
+                  onClick={() => setExpandedPhoto(evidence.fileUrl || '')}
+                  className="flex-shrink-0 w-24 h-24 rounded-lg overflow-hidden border-2 border-slate-200 hover:border-primary-400 transition-colors"
+                >
+                  <img
+                    src={evidence.fileUrl}
+                    alt="Task evidence"
+                    className="w-full h-full object-cover"
+                  />
+                </button>
+              ))}
+            </div>
           </div>
-          <p className="text-sm text-slate-600 mb-4">
-            Completed on {assignment.completedAt ? formatDate(assignment.completedAt) : 'N/A'}
-          </p>
-          <div className="flex gap-3">
-            <Button variant="success" size="sm" onClick={onApprove}>
-              <CheckCircle2 className="w-4 h-4" />
-              Approve
-            </Button>
-            <Button variant="ghost" size="sm" onClick={onReject}>
-              <XCircle className="w-4 h-4" />
-              Reject
-            </Button>
+        )}
+
+        {/* Note Evidence */}
+        {notes.length > 0 && (
+          <div className="mb-3">
+            <div className="flex items-center gap-1.5 text-sm text-slate-500 mb-1">
+              <FileText className="w-4 h-4" />
+              <span>Notes</span>
+            </div>
+            {notes.map((evidence) => (
+              <div key={evidence.id} className="bg-slate-50 rounded-lg p-3 text-sm text-slate-700">
+                {evidence.note}
+              </div>
+            ))}
+          </div>
+        )}
+
+        <div className="flex gap-3">
+          <Button variant="success" size="sm" onClick={onApprove}>
+            <CheckCircle2 className="w-4 h-4" />
+            Approve
+          </Button>
+          <Button variant="ghost" size="sm" onClick={onReject}>
+            <XCircle className="w-4 h-4" />
+            Reject
+          </Button>
+        </div>
+      </motion.div>
+
+      {/* Full-screen photo viewer */}
+      {expandedPhoto && (
+        <div
+          className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 cursor-pointer"
+          onClick={() => setExpandedPhoto(null)}
+        >
+          <div className="relative max-w-2xl w-full">
+            <img
+              src={expandedPhoto}
+              alt="Evidence photo"
+              className="w-full max-h-[80vh] object-contain rounded-lg"
+            />
+            <button
+              onClick={() => setExpandedPhoto(null)}
+              className="absolute top-2 right-2 p-2 bg-black/50 rounded-full text-white hover:bg-black/70"
+            >
+              <XCircle className="w-6 h-6" />
+            </button>
           </div>
         </div>
-      </div>
-    </motion.div>
+      )}
+    </>
   );
 }
 

@@ -6,6 +6,7 @@ import { validateBody, validateQuery } from '../middleware/validate';
 import { NotFoundError, ForbiddenError, ConflictError } from '../middleware/errorHandler';
 import { GAMIFICATION } from '@taskbuddy/shared';
 import { uploadPhoto } from '../middleware/upload';
+import { checkAndUnlockAchievements } from '../services/achievements';
 
 export const taskRouter = Router();
 
@@ -532,9 +533,15 @@ taskRouter.put('/assignments/:id/approve', requireParent, validateBody(approveTa
         };
       });
 
+      // Check and unlock any achievements earned
+      const unlockedAchievements = await checkAndUnlockAchievements(assignment.childId);
+
       res.json({
         success: true,
-        data: result,
+        data: {
+          ...result,
+          unlockedAchievements,
+        },
       });
     } else {
       // Reject assignment

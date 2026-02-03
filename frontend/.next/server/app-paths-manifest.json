@@ -1,4 +1,12 @@
 {
+  "/page": "app/page.js",
+  "/login/page": "app/login/page.js",
+  "/parent/dashboard/page": "app/parent/dashboard/page.js",
+  "/parent/children/page": "app/parent/children/page.js",
+  "/child/login/page": "app/child/login/page.js",
+  "/parent/settings/page": "app/parent/settings/page.js",
+  "/child/dashboard/page": "app/child/dashboard/page.js",
   "/child/tasks/page": "app/child/tasks/page.js",
+  "/child/rewards/page": "app/child/rewards/page.js",
   "/child/achievements/page": "app/child/achievements/page.js"
 }

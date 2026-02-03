@@ -416,12 +416,12 @@ function TaskPreviewCard({ item }: { item: TaskAssignment }) {
     <Link href="/child/tasks">
       <div
         className={cn(
-          'flex items-center gap-4 p-4 rounded-xl transition-colors',
+          'flex items-center gap-4 p-4 rounded-xl transition-all shadow-sm',
           isCompleted
             ? 'bg-success-50 border border-success-200'
             : isPending
             ? 'bg-warning-50 border border-warning-200'
-            : 'bg-slate-50 border border-slate-200 hover:border-slate-300'
+            : 'bg-white border border-slate-200 hover:border-slate-300 hover:shadow-md'
         )}
       >
         <div

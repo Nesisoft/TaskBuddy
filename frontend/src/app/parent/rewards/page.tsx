@@ -33,13 +33,14 @@ interface Reward {
 interface Redemption {
   id: string;
   status: string;
-  redeemedAt: string;
+  createdAt: string;
   fulfilledAt?: string;
   reward: {
     name: string;
     pointsCost: number;
   };
-  user: {
+  child: {
+    id: string;
     firstName: string;
     lastName: string;
   };
@@ -317,10 +318,10 @@ function RedemptionCard({
 
         <div className="flex-1">
           <p className="font-bold text-slate-900">
-            {redemption.user.firstName} redeemed {redemption.reward.name}
+            {redemption.child?.firstName || 'Child'} redeemed {redemption.reward.name}
           </p>
           <p className="text-sm text-slate-500">
-            {formatDate(redemption.redeemedAt)} - {formatPoints(redemption.reward.pointsCost)} pts
+            {formatDate(redemption.createdAt)} - {formatPoints(redemption.reward.pointsCost)} pts
           </p>
         </div>
 

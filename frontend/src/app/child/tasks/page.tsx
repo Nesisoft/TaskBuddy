@@ -190,7 +190,7 @@ export default function ChildTasksPage() {
               {waitingApproval.map((assignment) => (
                 <div
                   key={assignment.id}
-                  className="bg-warning-50 rounded-xl p-4 border border-warning-200"
+                  className="bg-warning-50 rounded-xl p-4 border border-warning-200 shadow-sm"
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-warning-100 flex items-center justify-center">
@@ -224,7 +224,7 @@ export default function ChildTasksPage() {
               {completedTasks.map((assignment) => (
                 <div
                   key={assignment.id}
-                  className="bg-success-50 rounded-xl p-4 border border-success-200"
+                  className="bg-success-50 rounded-xl p-4 border border-success-200 shadow-sm"
                 >
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-full bg-success-500 flex items-center justify-center">
